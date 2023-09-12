@@ -151,6 +151,7 @@ start-localnet: build
 	./build/cosmappd genesis collect-gentxs
 	sed -i.bak'' 's/minimum-gas-prices = ""/minimum-gas-prices = "0.025uatom"/' ~/.cosmappd/config/app.toml
 	#./build/cosmappd start
+
 ###############################################################################
 ###                           Tests & Simulation                            ###
 ###############################################################################

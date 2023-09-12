@@ -45,6 +45,7 @@ import (
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/gogoproto/proto"
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -101,6 +102,7 @@ var (
 )
 
 type App struct {
+	*runtime.App
 	*baseapp.BaseApp
 
 	legacyAmino       *codec.LegacyAmino //nolint:staticcheck
@@ -152,7 +154,6 @@ func NewApp(
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	// Set demo flag
 	runProvider := cast.ToBool(appOpts.Get(apptypes.FlagRunProvider))
-
 	interfaceRegistry, _ := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
 		ProtoFiles: proto.HybridResolver,
 		SigningOptions: signing.Options{
@@ -187,6 +188,26 @@ func NewApp(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
+	setMempool := sdkmempool.DefaultPriorityMempool()
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(setMempool)
+	})
+	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	// Below we could construct and set an application specific mempool and
+	// ABCI 1.0 NewPrepareProposal and ProcessProposal handlers. These defaults are
+	// already set in the SDK's BaseApp, this shows an example of how to override
+	// them.
+	//
+	// Example:
+	//
+	// bApp := baseapp.NewBaseApp(...)
+	// nonceMempool := mempool.NewSenderNonceMempool()
+	abciPropHandler := ProposalHandler{}
+	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
+	//bApp.SetProcessProposal(abci.ProcessProposalHandler())
+
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey,
 		banktypes.StoreKey,
