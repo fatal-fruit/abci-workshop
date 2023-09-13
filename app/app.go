@@ -102,7 +102,6 @@ var (
 )
 
 type App struct {
-	*runtime.App
 	*baseapp.BaseApp
 
 	legacyAmino       *codec.LegacyAmino //nolint:staticcheck
@@ -188,6 +187,7 @@ func NewApp(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
+
 	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
 	setMempool := sdkmempool.DefaultPriorityMempool()
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
@@ -201,12 +201,9 @@ func NewApp(
 	// them.
 	//
 	// Example:
-	//
+	
 	// bApp := baseapp.NewBaseApp(...)
 	// nonceMempool := mempool.NewSenderNonceMempool()
-	abciPropHandler := ProposalHandler{}
-	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
-	//bApp.SetProcessProposal(abci.ProcessProposalHandler())
 
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey,
@@ -219,6 +216,17 @@ func NewApp(
 		consensusparamtypes.StoreKey,
 		nstypes.StoreKey,
 	)
+
+	setMempool := sdkmempool.DefaultPriorityMempool()
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(setMempool)
+	})
+
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
+
+	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
+	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
+	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
 
 	// register streaming services
 	if err := bApp.RegisterStreamingServices(appOpts, keys); err != nil {
