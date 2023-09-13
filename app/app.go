@@ -217,11 +217,6 @@ func NewApp(
 		nstypes.StoreKey,
 	)
 
-	setMempool := sdkmempool.DefaultPriorityMempool()
-	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		app.SetMempool(setMempool)
-	})
-
 	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
 
 	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
