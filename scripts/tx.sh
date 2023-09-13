@@ -2,7 +2,7 @@
 
 alice=$(cosmappd keys show alice --address)
 bob=$(cosmappd keys show bob --address)
-carol=$(cosmappd keys show beatrice --address)
+beatrice=$(cosmappd keys show beatrice --address)
 
 get_name () {
     for people in [$alice,$bob,$beatrice]; do
@@ -18,7 +18,7 @@ stringify_name () {
         $bob)
             echo "bob"
             ;;
-        $carol)
+        $beatrice)
             echo "beatrice"
             ;;
          *)
@@ -32,7 +32,7 @@ stringify_name () {
 # However, with the fee mempool, the transactions or ordered by fees, so in the block it will be ordered as
 # BOB - ALICE - BEATRICE (try this with `cosmappd start --mempool-type fee`)
 echo "--> sending transactions in the order beatrice, alice, bob"
-cosmappd tx bank send carol $alice 10uatom -y --output json > /dev/null
+cosmappd tx bank send beatrice $alice 10uatom -y --output json > /dev/null
 tx=$(cosmappd tx bank send alice $bob 10uatom --fees 10uatom -y --output json | jq -r .txhash)
 cosmappd tx bank send bob $beatrice 10uatom --fees 100uatom -y --output json > /dev/null
 
