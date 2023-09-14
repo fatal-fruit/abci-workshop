@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"cosmossdk.io/log"
 	"fmt"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,11 +23,26 @@ func (h *ProposalHandler) NewPrepareProposal() sdk.PrepareProposalHandler {
 		numtxs := h.mempool.CountTx()
 		h.logger.Info(fmt.Sprintf("This is the number of app mempool transactions : %v ", numtxs))
 
+		req.GetLocalLastCommit()
+
 		counter := 0
 		for _, tx := range req.Txs {
 			counter++
+			h.logger.Info(fmt.Sprintf("This is the tendermint tx: %v ", tx))
 			proposalTxs = append(proposalTxs, tx)
 		}
+
+		var orderedTxs []sdk.Tx
+		itr := h.mempool.Select(context.Background(), nil)
+		for itr != nil {
+			orderedTxs = append(orderedTxs, itr.Tx())
+			itr = itr.Next()
+		}
+
+		for _, t := range orderedTxs {
+			h.logger.Info(fmt.Sprintf("This is the mempool tx: %v ", t))
+		}
+
 		h.logger.Info(fmt.Sprintf("This is the number of transactions from request : %v ", counter))
 
 		return &abci.ResponsePrepareProposal{

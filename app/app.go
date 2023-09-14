@@ -188,14 +188,7 @@ func NewApp(
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
 
-	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
-	setMempool := sdkmempool.DefaultPriorityMempool()
-	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		app.SetMempool(setMempool)
-	})
-	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
-
-	// Below we could construct and set an application specific mempool and
+	/// Below we could construct and set an application specific mempool and
 	// ABCI 1.0 NewPrepareProposal and ProcessProposal handlers. These defaults are
 	// already set in the SDK's BaseApp, this shows an example of how to override
 	// them.
