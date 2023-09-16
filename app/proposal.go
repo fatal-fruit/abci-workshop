@@ -2,8 +2,9 @@ package app
 
 import (
 	"context"
-	"cosmossdk.io/log"
 	"fmt"
+
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -21,11 +22,13 @@ func (h *ProposalHandler) NewPrepareProposal() sdk.PrepareProposalHandler {
 		var proposalTxs [][]byte
 
 		numtxs := h.mempool.CountTx()
+
 		h.logger.Info(fmt.Sprintf("This is the number of app mempool transactions : %v ", numtxs))
 
 		req.GetLocalLastCommit()
 
 		counter := 0
+		h.logger.Info(fmt.Sprintf("This is the tendermint tx length: %v ", len(req.Txs)))
 		for _, tx := range req.Txs {
 			counter++
 			h.logger.Info(fmt.Sprintf("This is the tendermint tx: %v ", tx))
@@ -42,6 +45,7 @@ func (h *ProposalHandler) NewPrepareProposal() sdk.PrepareProposalHandler {
 		for _, t := range orderedTxs {
 			h.logger.Info(fmt.Sprintf("This is the mempool tx: %v ", t))
 		}
+		h.logger.Info(fmt.Sprintf("This is the mempool tx length: %v ", len(orderedTxs)))
 
 		h.logger.Info(fmt.Sprintf("This is the number of transactions from request : %v ", counter))
 

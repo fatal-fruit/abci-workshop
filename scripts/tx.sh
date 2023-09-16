@@ -33,7 +33,7 @@ stringify_name () {
 # BOB - ALICE - BEATRICE (try this with `cosmappd start --mempool-type fee`)
 echo "--> sending transactions in the order beatrice, alice, bob"
 cosmappd tx bank send beatrice $(cosmappd keys show alice -a) 10uatom -y --output json > /dev/null
-tx=$(cosmappd tx bank send alice $()cosmappd keys show bob -a) 10uatom --fees 10uatom -y --output json | jq -r .txhash)
+tx=$(cosmappd tx bank send alice $(cosmappd keys show bob -a) 10uatom --fees 10uatom -y --output json | jq -r .txhash)
 cosmappd tx bank send bob $(cosmappd keys show beatrice -a) 10uatom --fees 100uatom -y --output json > /dev/null
 
 echo "--> sleeping the block time timeout duration"

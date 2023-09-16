@@ -44,6 +44,7 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/gogoproto/proto"
+
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 
@@ -177,10 +178,11 @@ func NewApp(
 		*************************
 	*/
 
-	mempool := sdkmempool.NewSenderNonceMempool()
-	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		app.SetMempool(mempool)
-	})
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
+
+	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
+	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
+	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
 
 	bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -210,11 +212,6 @@ func NewApp(
 		nstypes.StoreKey,
 	)
 
-	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
-
-	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
-	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
-	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
 
 	// register streaming services
 	if err := bApp.RegisterStreamingServices(appOpts, keys); err != nil {
