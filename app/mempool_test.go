@@ -47,10 +47,10 @@ func TestNewNoPrioMempool(t *testing.T) {
 		txs []txs
 	}{
 		{txs: []txs{
-			{sender: addr1, recipient: addr5, priority: 1},
-			{sender: addr2, recipient: addr6, priority: 2},
-			{sender: addr3, recipient: addr7, priority: 5},
-			{sender: addr4, recipient: addr8, priority: 30},
+			{sender: addr1, recipient: addr5},
+			{sender: addr2, recipient: addr6},
+			{sender: addr3, recipient: addr7},
+			{sender: addr4, recipient: addr8},
 		},
 		},
 	}
@@ -59,7 +59,6 @@ func TestNewNoPrioMempool(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			logger := log.NewNopLogger()
 			mempool := &NoPrioMempool{logger: logger}
-			fmt.Println(mempool.txs)
 			for i, tx := range tc.txs {
 				tx := testTx{id: i, priority: int64(tx.priority), address: tx.sender, nonce: uint64(i)}
 				err := mempool.Insert(context.Background(), tx)
@@ -70,15 +69,17 @@ func TestNewNoPrioMempool(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, i+1, count)
 
-				// not functioning
-				// mempool.Remove(tx)
-				// require.NoError(t, err)
-				// require.Equal(t, i, count)
+				if i == 3 {
 
-				// not functioning
-				test := mempool.Select(context.Background(), nil)
-				require.NoError(t, err)
-				require.Equal(t, mempool.Count, len(tx.address))
+					err = mempool.Remove(tx)
+					require.Equal(t, mempool.CountTx(), 3)
+				}
+				var ordered []sdk.Tx
+				itr := mempool.Select(context.Background(), nil)
+				for itr != nil {
+					ordered = append(ordered, itr.Tx())
+					itr = itr.Next()
+				}
 			}
 		})
 	}
