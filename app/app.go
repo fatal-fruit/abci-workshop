@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
-	abci2 "github.com/fatal-fruit/cosmapp/abci"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
 	"io"
@@ -46,7 +45,7 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -172,18 +171,6 @@ func NewApp(
 	std.RegisterLegacyAminoCodec(legacyAmino)
 	std.RegisterInterfaces(interfaceRegistry)
 
-	/*
-		*************************
-		Configure Appside mempool
-		*************************
-	*/
-
-	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
-
-	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
-	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
-	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
-
 	bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
@@ -199,6 +186,23 @@ func NewApp(
 	
 	// bApp := baseapp.NewBaseApp(...)
 	// nonceMempool := mempool.NewSenderNonceMempool()
+
+	/*
+		*************************
+		Configure Appside mempool
+		*************************
+	*/
+
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
+	setMempool := NewNoPrioMempool(logger)
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(setMempool)
+	})
+
+	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
+	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
+	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
+
 
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey,
@@ -261,8 +265,7 @@ func NewApp(
 	if err := bp.Init(); err != nil {
 		panic(err)
 	}
-	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
+	
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
