@@ -1,19 +1,19 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"encoding/json"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
-	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/std"
@@ -46,7 +46,6 @@ import (
 
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 
-
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	"cosmossdk.io/log"
@@ -77,7 +76,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	apptypes "github.com/fatal-fruit/cosmapp/types"
+	"github.com/fatal-fruit/cosmapp/mempool"
 	nskeeper "github.com/fatal-fruit/ns/keeper"
 	nameservice "github.com/fatal-fruit/ns/module"
 	nstypes "github.com/fatal-fruit/ns/types"
@@ -152,7 +151,6 @@ func NewApp(
 ) *App {
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	// Set demo flag
-	runProvider := cast.ToBool(appOpts.Get(apptypes.FlagRunProvider))
 	interfaceRegistry, _ := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
 		ProtoFiles: proto.HybridResolver,
 		SigningOptions: signing.Options{
@@ -183,7 +181,7 @@ func NewApp(
 	// them.
 	//
 	// Example:
-	
+
 	// bApp := baseapp.NewBaseApp(...)
 	// nonceMempool := mempool.NewSenderNonceMempool()
 
@@ -193,8 +191,8 @@ func NewApp(
 		*************************
 	*/
 
-	logger.Info("set mempool", "type", fmt.Sprintf("%T", sdkmempool.DefaultPriorityMempool()))
-	setMempool := NewNoPrioMempool(logger)
+	setMempool := mempool.NewNoPrioMempool(logger)
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", setMempool))
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(setMempool)
 	})
@@ -202,7 +200,6 @@ func NewApp(
 	abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
 	bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
 	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
-
 
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey,
@@ -215,7 +212,6 @@ func NewApp(
 		consensusparamtypes.StoreKey,
 		nstypes.StoreKey,
 	)
-
 
 	// register streaming services
 	if err := bApp.RegisterStreamingServices(appOpts, keys); err != nil {
@@ -265,7 +261,6 @@ func NewApp(
 	if err := bp.Init(); err != nil {
 		panic(err)
 	}
-	
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 

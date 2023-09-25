@@ -1,10 +1,15 @@
 #!/bin/bash
 
-cosmappd tx bank send beatrice $(cosmappd keys show alice -a) 100uatom -y --output json
-cosmappd tx bank send beatrice $(cosmappd keys show bob -a) 10uatom -y --output json
-cosmappd tx bank send bob $(cosmappd keys show alice -a) 100uatom -y --output json
-cosmappd tx bank send alice $(cosmappd keys show beatrice -a) 100uatom -y --output json
-cosmappd tx bank send beatrice $(cosmappd keys show alice -a) 1000uatom -y --output json
-cosmappd tx bank send beatrice $(cosmappd keys show bob -a) 100uatom -y --output json
-cosmappd tx bank send bob $(cosmappd keys show alice -a) 10000uatom -y --output json
-cosmappd tx bank send alice $(cosmappd keys show beatrice -a) 1000uatom -y --output json
+alice=$(cosmappd keys show alice -a)
+bob=$(cosmappd keys show bob -a)
+beatrice=$(cosmappd keys show beatrice -a)
+
+
+
+
+
+
+cosmappd tx bank send bob $($BINARY keys show alice -a --home $HOME/cosmos/nodes/beacon --keyring-backend test)  100uatom -y --output json
+cosmappd tx bank send alice$($BINARY keys show bob -a --home $HOME/cosmos/nodes/beacon --keyring-backend test)  10uatom -y --output json
+cosmappd tx bank send bob $($BINARY keys show alice -a --home $HOME/cosmos/nodes/beacon --keyring-backend test)  100uatom -y --output json
+cosmappd tx bank send bob $($BINARY keys show alice -a --home $HOME/cosmos/nodes/beacon --keyring-backend test)  100uatom -y --output json

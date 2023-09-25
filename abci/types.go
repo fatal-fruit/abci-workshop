@@ -4,7 +4,7 @@ import (
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	"github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 )
 
@@ -12,7 +12,7 @@ type PrepareProposalHandler struct {
 	logger      log.Logger
 	txConfig    client.TxConfig
 	cdc         codec.Codec
-	mempool     *sdkmempool.SenderNonceMempool
+	mempool     *mempool.NoPrioMempool
 	txProvider  provider.TxProvider
 	keyname     string
 	runProvider bool

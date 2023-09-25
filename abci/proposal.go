@@ -8,11 +8,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	"github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 )
 
-func NewPrepareProposalHandler(lg log.Logger, txCg client.TxConfig, cdc codec.Codec, mp *sdkmempool.SenderNonceMempool, pv provider.TxProvider, runProv bool) *PrepareProposalHandler {
+func NewPrepareProposalHandler(lg log.Logger, txCg client.TxConfig, cdc codec.Codec, mp *mempool.NoPrioMempool, pv provider.TxProvider, runProv bool) *PrepareProposalHandler {
 	return &PrepareProposalHandler{
 		logger:      lg,
 		txConfig:    txCg,
