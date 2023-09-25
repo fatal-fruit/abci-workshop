@@ -47,9 +47,7 @@ If a bid included in the proposal does not meet the minimum threshold of inclusi
 - [Jq](https://jqlang.github.io/jq/)
 
 #### Start A Single Chain
-
-> Note: Running the provider on a single chain will affect liveness. This setup is best used to demonstrate Part 1. 
-> First checkout [part-1-2](https://github.com/fatal-fruit/abci-workshop/tree/part-1-2) and navigate to the [single node demo](#single-node).
+> Note: Running the provider on a single chain will affect liveness. This setup is best used to demonstrate Part 1.
 
 ```
 make start-localnet
@@ -59,55 +57,9 @@ jq '.consensus.params.abci.vote_extensions_enable_height = "2"' ~/.cosmappd/conf
 ./build/cosmappd start --val-key val1 --run-provider false
 ```
 
-#### Start a 3 Validator Network
-
-Make sure to run `make build`
-
-```shell
-./scripts/configure.sh
-```
-
-Read Logs
-```shell
-
-tail -f $HOME/cosmos/nodes/beacon/logs
-tail -f $HOME/cosmos/nodes/val1/logs
-tail -f $HOME/cosmos/nodes/val1/logs
-```
-
-Query a node
-```shell
-./scripts/query-beacon-status.sh
-```
-
-List Available User Keys
-```shell
-./scripts/list-beacon-keys.sh
-```
-
 ### Demo
 
 > **Vote Extensions** are enabled from Height 2, so make sure not to submit transactions until H+1 has been comitted.
-
-#### 3 Validator Network
-In the 3 validator network, the Beacon validator has a custom transaction provider enabled.
-It might take a few tries before the transaction is picked up and front ran by the Beacon.
-
-After submitting the following transaction, we should be able to see the proposal accepted or rejected in the logs.
-Note that it is best to submit the transaction after the Beacon has just proposed a successful proposal.
-```shell
-./scripts/reserve.sh "bob.cosmos"
-```
-Query to verify the name has been reserved
-```shell
-./scripts/whois.sh "bob.cosmos"
-```
-If the Beacon attempts to front run the bid, we will see the following logs during `ProcessProposal`
-```shell
-2:47PM ERR ❌️:: Detected invalid proposal bid :: name:"bob.cosmos" resolveAddress:"cosmos1wmuwv38pdur63zw04t0c78r2a8dyt08hf9tpvd" owner:"cosmos1wmuwv38pdur63zw04t0c78r2a8dyt08hf9tpvd" amount:<denom:"uatom" amount:"2000" >  module=server
-2:47PM ERR ❌️:: Unable to validate bids in Process Proposal :: <nil> module=server
-2:47PM ERR prevote step: state machine rejected a proposed block; this should not happen:the proposer may be misbehaving; prevoting nil err=null height=142 module=consensus round=0
-```
 
 #### Single Node
 
