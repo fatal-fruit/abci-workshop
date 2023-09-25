@@ -2,10 +2,11 @@ package abci
 
 import (
 	"context"
-	"cosmossdk.io/log"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -95,14 +96,10 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 
 		// The first transaction will always be the Special Transaction
 		numTxs := len(req.Txs)
-		if numTxs == 1 {
-			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
-		}
-
 		if numTxs >= 1 {
 			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
 			var st SpecialTransaction
-			err = json.Unmarshal(req.Txs[0], &st)
+			err = json.Unmarshal(req.Txs[0], &st) //Check for height > 2 here?
 			if err != nil {
 				h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling special Tx in Process Proposal :: %v", err))
 			}
@@ -201,6 +198,9 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 		bidFreq[h]++
 	}
 
+	// Say you have 3 validators with voting power 1, 2 and 3.
+	// Say 100 different bids are sent for different addresses. The threshold, as per the code, is 51. Hence, no bid will reach the threshold and be accepted.
+	// Wouldn't it better to have as threshold 3*2/3+1 instead? Or (1+2+3)*2/3+1 (with bids weighted per voter)?
 	thresholdCount := int(float64(totalVotes) * 0.5)
 	logger.Info(fmt.Sprintf("🛠️ :: VE Threshold: %v", thresholdCount))
 	ok := true

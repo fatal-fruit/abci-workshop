@@ -2,9 +2,10 @@ package abci
 
 import (
 	"context"
-	"cosmossdk.io/log"
 	"encoding/json"
 	"fmt"
+
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,10 +15,15 @@ import (
 
 func NewVoteExtensionHandler(lg log.Logger, mp *mempool.ThresholdMempool, cdc codec.Codec) *VoteExtHandler {
 	return &VoteExtHandler{
-		logger:  lg,
-		mempool: mp,
-		cdc:     cdc,
+		logger:      lg,
+		mempool:     mp,
+		cdc:         cdc,
+		subscribers: make(map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)),
 	}
+}
+
+func (h *VoteExtHandler) SetSubscriber(key string, subHandler func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)) {
+	h.subscribers[key] = subHandler
 }
 
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
@@ -25,6 +31,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		h.logger.Info(fmt.Sprintf("Extending votes at block height : %v", req.Height))
 
 		voteExtBids := [][]byte{}
+		voteExtExtra := [][]byte{}
 
 		// Get mempool txs
 		itr := h.mempool.SelectPending(context.Background(), nil)
@@ -48,6 +55,14 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 					}
 					voteExtBids = append(voteExtBids, bz)
 				default:
+					for _, v := range h.subscribers {
+						val, error := v(ctx, req)
+
+						//Route to other functions.
+						if error == nil {
+							voteExtExtra = append(voteExtExtra, val)
+						}
+					}
 				}
 			}
 
@@ -65,8 +80,9 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 
 		// Create vote extension
 		voteExt := AppVoteExtension{
-			Height: req.Height,
-			Bids:   voteExtBids,
+			Height:    req.Height,
+			Bids:      voteExtBids,
+			ExtraInfo: voteExtExtra,
 		}
 
 		// Marshal Vote Extension

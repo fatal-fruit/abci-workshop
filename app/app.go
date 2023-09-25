@@ -1,20 +1,21 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"encoding/json"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	abci2 "github.com/fatal-fruit/cosmapp/abci"
 	mempool2 "github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
-	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/std"
@@ -44,6 +45,7 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/gogoproto/proto"
+
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -185,6 +187,19 @@ func NewApp(
 	voteExtOp := func(bApp *baseapp.BaseApp) {
 		voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
+		voteExtHandler.SetSubscriber(authtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			//Do something with app.AccountKeeper
+			return []byte{}, nil
+		})
+		voteExtHandler.SetSubscriber(stakingtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			return []byte{}, nil
+		})
+		voteExtHandler.SetSubscriber(govtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			return []byte{}, nil
+		})
+		voteExtHandler.SetSubscriber(nstypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			return []byte{}, nil
+		})
 	}
 	baseAppOptions = append(baseAppOptions, voteExtOp)
 
