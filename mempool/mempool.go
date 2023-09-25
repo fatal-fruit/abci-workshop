@@ -12,18 +12,16 @@ import (
 
 var _ mempool.Mempool = (*NoPrioMempool)(nil)
 
-func NewNoPrioMempool(logger log.Logger) *NoPrioMempool {
-	return &NoPrioMempool{
-		logger: logger.With("module", "noprio-mempool"),
-		txs:    make([]sdk.Tx, 0),
-		idx:    0,
-	}
-}
-
 type NoPrioMempool struct {
 	logger log.Logger
 	txs    []sdk.Tx
 	idx    int
+}
+
+func NewNoPrioMempool(logger log.Logger) *NoPrioMempool {
+	return &NoPrioMempool{
+		logger: logger.With("module", "noprio-mempool"),
+	}
 }
 
 type npmTxs struct {

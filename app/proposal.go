@@ -42,12 +42,12 @@ func (h *ProposalHandler) NewPrepareProposal() sdk.PrepareProposalHandler {
 			itr = itr.Next()
 		}
 
+		h.logger.Info(fmt.Sprintf("This is the mempool tx length: %v ", len(orderedTxs)))
+		
 		for _, t := range orderedTxs {
 			h.logger.Info(fmt.Sprintf("This is the mempool tx: %v ", t))
 		}
 		h.logger.Info(fmt.Sprintf("This is the mempool tx length: %v ", len(orderedTxs)))
-
-		h.logger.Info(fmt.Sprintf("This is the number of transactions from request : %v ", counter))
 
 		return &abci.ResponsePrepareProposal{
 			Txs: proposalTxs,
