@@ -1,191 +1,85 @@
 package mempool
 
 import (
+	"bytes"
 	"context"
 	"cosmossdk.io/log"
+	json "encoding/json"
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-var _ mempool.Mempool = (*ThresholdMempool)(nil)
+var _ mempool.Mempool = (*NoPrioMempool)(nil)
 
-type ThresholdMempool struct {
-	logger      log.Logger
-	pendingPool thTxs
-	pool        thTxs
+type NoPrioMempool struct {
+	logger log.Logger
+	txs    []sdk.Tx
+	idx    int
 }
 
-func NewThresholdMempool(logger log.Logger) *ThresholdMempool {
-	return &ThresholdMempool{
-		logger: logger.With("module", "threshold-mempool"),
+func NewNoPrioMempool(logger log.Logger) *NoPrioMempool {
+	return &NoPrioMempool{
+		logger: logger.With("module", "noprio-mempool"),
 	}
 }
 
-func (t *ThresholdMempool) Insert(ctx context.Context, tx sdk.Tx) error {
-	sigs, err := tx.(signing.SigVerifiableTx).GetSignaturesV2()
-	if err != nil {
-		t.logger.Error("Error unable to retrieve tx signatures")
-		return err
+type npmTxs struct {
+	idx int
+	txs []sdk.Tx
+}
+
+func (npm *npmTxs) Next() mempool.Iterator {
+	// increment the index
+	if npm.idx < len(npm.txs)-1 {
+		npm.idx++
+		return npm
 	}
-	// Guarantee there is at least 1 signer
-	if len(sigs) == 0 {
-		t.logger.Error("Error missing tx signatures")
-		return fmt.Errorf("Transaction must be signed")
-	}
+	return nil
+}
 
-	sig := sigs[0]
-	sender := sdk.AccAddress(sig.PubKey.Address()).String()
-	t.logger.Info(fmt.Sprintf("This is the sender account address :: %v", sender))
+func (npm *npmTxs) Tx() sdk.Tx {
+	// return Tx
+	return npm.txs[npm.idx]
+}
 
-	// Set default 0 priority
-	priority := int64(0)
-	appTx := thTx{
-		sender,
-		priority,
-		tx,
-	}
-
-	t.logger.Info(fmt.Sprintf("Inserting transaction from %v with priority %v", sender, priority))
-
-	t.pendingPool.txs = append(t.pendingPool.txs, appTx)
-	leng := len(t.pendingPool.txs)
-	t.logger.Info(fmt.Sprintf("Transactions length %v", leng))
+func (npm *NoPrioMempool) Insert(_ context.Context, tx sdk.Tx) error {
+	//append to txs
+	npm.logger.Info(fmt.Sprintf("This is the transaction %v ", tx))
+	npm.txs = append(npm.txs, tx)
 
 	return nil
 }
 
-func (t *ThresholdMempool) Select(ctx context.Context, i [][]byte) mempool.Iterator {
-	if len(t.pool.txs) == 0 {
-		return nil
-	}
-
-	return &t.pool
+func (npm *NoPrioMempool) Select(_ context.Context, _ [][]byte) mempool.Iterator {
+	iterator := &npmTxs{idx: 0, txs: npm.txs}
+	return iterator
 }
 
-func (t *ThresholdMempool) SelectPending(ctx context.Context, i [][]byte) mempool.Iterator {
-	if len(t.pendingPool.txs) == 0 {
-		return nil
-	}
-
-	return &t.pendingPool
+// return the length of txs
+func (npm *NoPrioMempool) CountTx() int {
+	return len(npm.txs)
 }
 
-func (t *ThresholdMempool) Update(ctx context.Context, tx sdk.Tx) error {
-	sigs, err := tx.(signing.SigVerifiableTx).GetSignaturesV2()
+func (npm *NoPrioMempool) Remove(tx sdk.Tx) error {
+	txBytes, err := json.Marshal(tx)
 	if err != nil {
 		return err
 	}
-	if len(sigs) == 0 {
-		return fmt.Errorf("tx must have at least one signer")
-	}
 
-	sig := sigs[0]
-	sender := sdk.AccAddress(sig.PubKey.Address()).String()
-
-	txToUpdate := thTx{
-		sender,
-		1,
-		tx,
-	}
-
-	for idx, ttx := range t.pendingPool.txs {
-		if ttx.Equal(txToUpdate) {
-			t.pendingPool.txs = removeAtIndex(t.pendingPool.txs, idx)
-			t.pool.txs = append(t.pool.txs, txToUpdate)
-			return nil
+	for i, mempoolTx := range npm.txs {
+		mempoolTxBytes, err := json.Marshal(mempoolTx)
+		if err != nil {
+			return err
 		}
-	}
-	// remove from pendingPool, add to
 
-	return mempool.ErrTxNotFound
-}
-
-func (t *ThresholdMempool) CountTx() int {
-	return len(t.pendingPool.txs)
-}
-
-func (t *ThresholdMempool) Remove(tx sdk.Tx) error {
-	sigs, err := tx.(signing.SigVerifiableTx).GetSignaturesV2()
-	if err != nil {
-		return err
-	}
-	if len(sigs) == 0 {
-		return fmt.Errorf("tx must have at least one signer")
-	}
-
-	sig := sigs[0]
-	sender := sdk.AccAddress(sig.PubKey.Address()).String()
-
-	txToRemove := thTx{
-		sender,
-		1,
-		tx,
-	}
-
-	for idx, ttx := range t.pool.txs {
-		if ttx.Equal(txToRemove) {
-			t.pool.txs = removeAtIndex(t.pool.txs, idx)
+		if bytes.Equal(txBytes, mempoolTxBytes) {
+			npm.txs = append(npm.txs[:i], npm.txs[i+1:]...)
+			npm.idx++
 			return nil
 		}
 	}
 
-	return mempool.ErrTxNotFound
-}
-
-var _ mempool.Iterator = &thTxs{}
-
-type thTxs struct {
-	idx int
-	txs []thTx
-}
-
-func (t *thTxs) Next() mempool.Iterator {
-	if len(t.txs) == 0 {
-		return nil
-	}
-
-	if len(t.txs) == t.idx+1 {
-		return nil
-	}
-
-	t.idx++
-	return t
-}
-
-func (t *thTxs) Tx() sdk.Tx {
-	if t.idx >= len(t.txs) {
-		panic(fmt.Sprintf("index out of bound: %d, Txs: %v", t.idx, t))
-	}
-
-	return t.txs[t.idx].tx
-}
-
-type thTx struct {
-	address  string
-	priority int64
-	tx       sdk.Tx
-}
-
-func (tx thTx) Equal(other thTx) bool {
-	if tx.address != other.address {
-		return false
-	}
-
-	if len(tx.tx.GetMsgs()) != len(other.tx.GetMsgs()) {
-		return false
-	}
-
-	for i, msg := range tx.tx.GetMsgs() {
-		if msg.String() != other.tx.GetMsgs()[i].String() {
-			return false
-		}
-	}
-
-	return true
-}
-
-func removeAtIndex[T any](slice []T, index int) []T {
-	return append(slice[:index], slice[index+1:]...)
+	// If the transaction is not in the mempool, return an error.
+	return fmt.Errorf("transaction not found in the mempool")
 }

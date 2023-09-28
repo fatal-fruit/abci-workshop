@@ -1,20 +1,21 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
+	abci2 "github.com/fatal-fruit/cosmapp/abci"
+	"github.com/fatal-fruit/cosmapp/mempool"
+	"github.com/fatal-fruit/cosmapp/provider"
+	"io"
+	"os"
+	"path/filepath"
+
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"encoding/json"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	abci2 "github.com/fatal-fruit/cosmapp/abci"
-	mempool2 "github.com/fatal-fruit/cosmapp/mempool"
-	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
-	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/std"
@@ -31,6 +32,7 @@ import (
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	apptypes "github.com/fatal-fruit/cosmapp/types"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
@@ -44,6 +46,7 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/gogoproto/proto"
+
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -76,7 +79,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	apptypes "github.com/fatal-fruit/cosmapp/types"
 	nskeeper "github.com/fatal-fruit/ns/keeper"
 	nameservice "github.com/fatal-fruit/ns/module"
 	nstypes "github.com/fatal-fruit/ns/types"
@@ -150,9 +152,8 @@ func NewApp(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	// Set demo flag
 	runProvider := cast.ToBool(appOpts.Get(apptypes.FlagRunProvider))
-
+	// Set demo flag
 	interfaceRegistry, _ := types.NewInterfaceRegistryWithOptions(types.InterfaceRegistryOptions{
 		ProtoFiles: proto.HybridResolver,
 		SigningOptions: signing.Options{
@@ -171,28 +172,12 @@ func NewApp(
 	std.RegisterLegacyAminoCodec(legacyAmino)
 	std.RegisterInterfaces(interfaceRegistry)
 
-	/*
-		*************************
-		Configure Appside mempool
-		*************************
-	*/
-
-	mempool := mempool2.NewThresholdMempool(logger)
-	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		app.SetMempool(mempool)
-	})
-
-	voteExtOp := func(bApp *baseapp.BaseApp) {
-		voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
-		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
-	}
-	baseAppOptions = append(baseAppOptions, voteExtOp)
-
 	bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
+
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey,
 		banktypes.StoreKey,
@@ -222,19 +207,6 @@ func NewApp(
 		tkeys:             tkeys,
 	}
 
-	moduleAccountAddresses := app.ModuleAccountAddrs()
-	blockedAddr := app.BlockedModuleAccountAddrs(moduleAccountAddresses)
-
-	app.AccountKeeper = authkeeper.NewAccountKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
-		authtypes.ProtoBaseAccount,
-		maccPerms,
-		authcodec.NewBech32Codec(sdk.Bech32MainPrefix),
-		sdk.Bech32MainPrefix,
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-
 	/*
 		*************************
 		Configure ABCI++ Handlers
@@ -253,10 +225,50 @@ func NewApp(
 	if err := bp.Init(); err != nil {
 		panic(err)
 	}
-	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
+
+	/// Below we could construct and set an application specific mempool and
+	// ABCI 1.0 NewPrepareProposal and ProcessProposal handlers. These defaults are
+	// already set in the SDK's BaseApp, this shows an example of how to override
+	// them.
+	//
+	// Example:
+
+	// bApp := baseapp.NewBaseApp(...)
+	// nonceMempool := mempool.NewSenderNonceMempool()
+
+	/*
+		*************************
+		Configure Appside mempool
+		*************************
+	*/
+
+	setMempool := mempool.NewNoPrioMempool(logger)
+	logger.Info("set mempool", "type", fmt.Sprintf("%T", setMempool))
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(setMempool)
+	})
+
+	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, setMempool, bp, runProvider)
+	//processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
-	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
+	//bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
+
+	//abciPropHandler := ProposalHandler{logger: logger, mempool: setMempool}
+	//bApp.SetPrepareProposal(abciPropHandler.NewPrepareProposal())
+	//bApp.SetProcessProposal(abciPropHandler.NewProcessProposal())
+
+	moduleAccountAddresses := app.ModuleAccountAddrs()
+	blockedAddr := app.BlockedModuleAccountAddrs(moduleAccountAddresses)
+
+	app.AccountKeeper = authkeeper.NewAccountKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
+		authtypes.ProtoBaseAccount,
+		maccPerms,
+		authcodec.NewBech32Codec(sdk.Bech32MainPrefix),
+		sdk.Bech32MainPrefix,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
