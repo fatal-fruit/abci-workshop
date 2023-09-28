@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	abci2 "github.com/fatal-fruit/cosmapp/abci"
-	mempool2 "github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
 	"io"
@@ -177,16 +177,10 @@ func NewApp(
 		*************************
 	*/
 
-	mempool := mempool2.NewThresholdMempool(logger)
+	mempool := sdkmempool.NewSenderNonceMempool()
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mempool)
 	})
-
-	voteExtOp := func(bApp *baseapp.BaseApp) {
-		voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
-		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
-	}
-	baseAppOptions = append(baseAppOptions, voteExtOp)
 
 	bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -254,9 +248,7 @@ func NewApp(
 		panic(err)
 	}
 	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
-	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 

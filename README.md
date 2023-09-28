@@ -47,7 +47,7 @@ If a bid included in the proposal does not meet the minimum threshold of inclusi
 - [Jq](https://jqlang.github.io/jq/)
 
 #### Start A Single Chain
-> Note: Running the provider on a single chain will affect liveness. This setup is best used to demonstrate Part 1.
+> Note: Running the provider on a single chain will affect liveness. This setup is best used to demonstrate Part 1. 
 > First checkout [part-1-2](https://github.com/fatal-fruit/abci-workshop/tree/part-1-2) and navigate to the [single node demo](#single-node).
 
 ```
