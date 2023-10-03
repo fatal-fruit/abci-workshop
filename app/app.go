@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	abci2 "github.com/fatal-fruit/cosmapp/abci"
+	mempool2 "github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
 	"io"
@@ -177,7 +177,7 @@ func NewApp(
 		*************************
 	*/
 
-	mempool := sdkmempool.NewSenderNonceMempool()
+	mempool := mempool2.NewThresholdMempool(logger)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mempool)
 	})

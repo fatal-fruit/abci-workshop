@@ -1,6 +1,6 @@
 #!/bin/bash
 
-git checkout part-1
+#git checkout part-1
 make build
 binary=./build/cosmappd
 home=$HOME/.cosmappd
@@ -17,4 +17,5 @@ $binary genesis add-genesis-account bob 1000000000000000000uatom  --home $home
 $binary genesis gentx val1 1000000000uatom --chain-id cosmos-1 --home $home
 $binary genesis collect-gentxs --home $home
 sed -i.bak'' 's/minimum-gas-prices = ""/minimum-gas-prices = "0.025uatom"/' $home/config/app.toml
+jq '.consensus.params.abci.vote_extensions_enable_height = "2"' ~/.cosmappd/config/genesis.json > output.json && mv output.json ~/.cosmappd/config/genesis.json
 $binary start --val-key val1 --run-provider true
