@@ -1,6 +1,5 @@
 #!/bin/bash
 
-git checkout part-1
 make build
 binary=./build/cosmappd
 home=$HOME/.cosmappd

@@ -42,19 +42,11 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 		if req.Height > 2 {
 
 			// Get Special Transaction
-			ve, err := processVoteExtensions(req, h.logger)
-			if err != nil {
-				h.logger.Error(fmt.Sprintf("❌️ :: Unable to process Vote Extensions: %v", err))
-			}
 
 			// Marshal Special Transaction
-			bz, err := json.Marshal(ve)
-			if err != nil {
-				h.logger.Error(fmt.Sprintf("❌️ :: Unable to marshal Vote Extensions: %v", err))
-			}
 
 			// Append Special Transaction to proposal
-			proposalTxs = append(proposalTxs, bz)
+
 		}
 
 		var txs []sdk.Tx
@@ -91,46 +83,19 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 
 func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
-		h.Logger.Info(fmt.Sprintf("⚙️ :: Process Proposal"))
-
 		// The first transaction will always be the Special Transaction
-		numTxs := len(req.Txs)
-		if numTxs == 1 {
-			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
-		}
 
-		if numTxs >= 1 {
-			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
-			var st SpecialTransaction
-			err = json.Unmarshal(req.Txs[0], &st)
-			if err != nil {
-				h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling special Tx in Process Proposal :: %v", err))
-			}
-			if len(st.Bids) > 0 {
-				h.Logger.Info(fmt.Sprintf("⚙️:: There are bids in the Special Transaction"))
-				var bids []nstypes.MsgBid
-				for i, b := range st.Bids {
-					var bid nstypes.MsgBid
-					h.Codec.Unmarshal(b, &bid)
-					h.Logger.Info(fmt.Sprintf("⚙️:: Special Transaction Bid No %v :: %v", i, bid))
-					bids = append(bids, bid)
-				}
-				// Validate Bids in Tx
-				txs := req.Txs[1:]
-				ok, err := ValidateBids(h.TxConfig, bids, txs, h.Logger)
-				if err != nil {
-					h.Logger.Error(fmt.Sprintf("❌️:: Error validating bids in Process Proposal :: %v", err))
-					return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
-				}
-				if !ok {
-					h.Logger.Error(fmt.Sprintf("❌️:: Unable to validate bids in Process Proposal :: %v", err))
-					return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
-				}
-				h.Logger.Info("⚙️:: Successfully validated bids in Process Proposal")
-			}
-		}
+		// But we want to first check if the proposal has any transactions
 
-		return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
+		// Double check if the first transaction is the special transaction and if it is we always want to Unmarshal
+
+		// Check if there are any bids in the Special Transaction
+
+		// Unmarshal the bids
+
+		// Validate these bids
+
+		return nil, nil
 	}
 }
 
@@ -138,36 +103,16 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 	log.Info(fmt.Sprintf("🛠️ :: Process Vote Extensions"))
 
 	// Create empty response
-	st := SpecialTransaction{
-		0,
-		[][]byte{},
-	}
 
 	// Get Vote Ext for H-1 from Req
-	voteExt := req.GetLocalLastCommit()
-	votes := voteExt.Votes
 
 	// Iterate through votes
-	var ve AppVoteExtension
-	for _, vote := range votes {
-		// Unmarshal to AppExt
-		err := json.Unmarshal(vote.VoteExtension, &ve)
-		if err != nil {
-			log.Error(fmt.Sprintf("❌ :: Error unmarshalling Vote Extension"))
-		}
 
-		st.Height = int(ve.Height)
+	// Unmarshal to AppExt
 
-		// If Bids in VE, append to Special Transaction
-		if len(ve.Bids) > 0 {
-			log.Info("🛠️ :: Bids in VE")
-			for _, b := range ve.Bids {
-				st.Bids = append(st.Bids, b)
-			}
-		}
-	}
+	// If Bids in VE, append to Special Transaction
 
-	return st, nil
+	return SpecialTransaction{}, nil
 }
 
 func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs [][]byte, logger log.Logger) (bool, error) {

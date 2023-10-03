@@ -247,12 +247,13 @@ func NewApp(
 	if err := bp.Init(); err != nil {
 		panic(err)
 	}
-	voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
+
 	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
-	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
-	bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
+
+	// Process Proposal Handler
+
+	// Vote Extension Handler
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 

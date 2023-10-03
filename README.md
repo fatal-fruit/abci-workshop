@@ -24,69 +24,164 @@ If a bid included in the proposal does not meet the minimum threshold of inclusi
 
 ## Content
 
-### Part 1
-1. Getting Started
-2. Exploring MEV Mitigation
+#### [Introduction](#intro)
+- Getting Started
+- Exploring MEV Mitigation
 
-### Part 2
+#### [Part 1](#part_1)
 1. Submit Proof of Existence with Vote Extensions
 2. Winning the Race: Modifying the Mempool
 
-### Part 3
+#### [Part 2](#part_)
 1. Collating Evidence in Prepare Proposal
 2. Detecting & Deflecting Misbehavior with Process Proposal
 
 <hr>
 
-## Developing
+## Intro
 
-### Setup
+**Content**
+- ABCI++ Overview
+- Tour of App
+- Understanding the Problem
 
-**Dependencies**
-- [Go 1.21](https://go.dev/dl/)
-- [Jq](https://jqlang.github.io/jq/)
+#### ABCI++ Overview
+- CometBFT changes in protocol from ABCI -> ABCI++
+  - ABCI: BeginBlock, DeliverTx, EndBlock moved to Finalize Block
+  - Addition of ExtendVote during PreCommit phase
+- Additional Features in v0.50 Eden
+  - Optimistic Execution: https://github.com/cosmos/cosmos-sdk/pull/16581
+  - Vote Extensions: https://docs.cosmos.network/main/build/architecture/adr-064-abci-2.0#voteextensions
+  - Module updates:
+    https://github.com/cosmos/cosmos-sdk/blob/release/v0.50.x/UPGRADING.md#modules
 
-#### Start A Single Chain
-> Note: Running the provider on a single chain will affect liveness. This setup is best used to demonstrate Part 1.
-> First checkout [part-1-2](https://github.com/fatal-fruit/abci-workshop/tree/part-1-2) and navigate to the [single node demo](#single-node).
+#### Tour of the App
+- How to configure:
+  - App side mempool
+  - Vote Extensions
+    - Consensus Params
+    - App Opts
+  - Prepare Proposal Handler
+  - Process Proposal Handler
+
+### Understanding the Problem
+- Diagram Overview
+- Demos
+  - Part 1
+  - Final Solution
+- Code Walkthrough
+
+<hr>
+
+## Part 1
+
+In the first part we'll configure vote extensions to peek into the mempool and submit a list of all unconfirmed bids.
+
+Then we'll verify that we can access the list of unconfirmed transactions in the `abci.RequestPrepareProposal` during the following block. Vote Extensions can be found in `LocalLastCommit`.
+
+**1. Create Vote Extension Handler**
+In `/abci/proposal.go`
+```go
+func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
+	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+
+      // Get unconfirmed transactions from mempool
+
+      // Iterate through reaped transactions, msgs and check for bids
+
+      // Move tx to ready pool
+
+      // Remove tx from app side mempool
+
+      // Create vote extension
+      
+      // Marshal Vote Extension
+    }
+}
+```
+
+**2. Configure Handler in App**
+In `/app/app.go`
+```go
+bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
+
+...
+// 
+voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
+bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
+```
+
+**3. Validate Vote Extensions propagagted**
+We want to add the following to the `PrepareProposalHandler` to print out and test our vote extensions have entere
+```go
+
+if req.Height > 2 {  
+   voteExt := req.GetLocalLastCommit()  
+   h.logger.Info(fmt.Sprintf("🛠️ :: Get vote extensions: %v", voteExt))  
+}
 
 ```
-make start-localnet
 
-jq '.consensus.params.abci.vote_extensions_enable_height = "2"' ~/.cosmappd/config/genesis.json > output.json && mv output.json ~/.cosmappd/config/genesis.json
 
-./build/cosmappd start --val-key val1 --run-provider false
+<hr>
+
+## Part 2
+
+In the second part, in **Prepare Proposal** we'll process the vote extensions from the previous round and inject them into the proposal via a special transaction.
+
+In **Process Proposal**, if a proposal contains a bid, we examine the bids in the special transaction and verify that this bid has been included in the previous height's vote extensions.
+
+**1. Process Vote Extensions in Prepare Proposal**
+```go
+func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+
+      // Get VE from ProposedLastCommit
+
+      // Get Special Transaction
+
+      // Append Special Transaction to proposal
+}
 ```
 
-#### Start a 3 Validator Network
 
-Make sure to run `make build`
+**2. Create Process Proposal Handler**
+```go
+func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 
-```shell
-./scripts/configure.sh
+        // The first transaction will always be the Special Transaction
+        
+        // But we want to first check if the proposal has any transactions
+
+        // Double check if the first transaction is the special transaction and if it is we always want to Unmarshal
+
+        // Check if there are any bids in the Special Transaction
+
+        // Unmarshal the bids
+
+        // Validate these bids
+    }
+}
 ```
 
-Read Logs
-```shell
-
-tail -f $HOME/cosmos/nodes/beacon/logs
-tail -f $HOME/cosmos/nodes/val1/logs
-tail -f $HOME/cosmos/nodes/val1/logs
+**3. Configure Process Proposal Handler in App**
+In `/app/app.go`
+```go
+processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
+bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 ```
 
-Query a node
-```shell
-./scripts/query-beacon-status.sh
-```
+If you want to validate the bids such as we have in this example you must ensure you do the following:
 
-List Available User Keys
-```shell
-./scripts/list-beacon-keys.sh
-```
+- Decode the proposal transactions and extract the bids
+- Map bid frequencies, where the number of times the bid appears in the VE is stored
+-  Figure out how many votes are needed for a bid to be considered valid
+- Iterate over the bids in the proposal and check if each bid appears in the VE at least as many times as the threshold count (for the threshold count we will need to implement the `ThresholdMempool`)
 
-### Demo
+<hr>
 
-> **Vote Extensions** are enabled from Height 2, so make sure not to submit transactions until H+1 has been comitted.
+## [Demo](https://github.com/fatal-fruit/abci-workshop#demo)
 
 #### 3 Validator Network
 In the 3 validator network, the Beacon validator has a custom transaction provider enabled.
