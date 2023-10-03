@@ -40,7 +40,8 @@ func (t *ThresholdMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	t.logger.Info(fmt.Sprintf("This is the sender account address :: %v", sender))
 
 	// Set default 0 priority
-	priority := int64(0)
+	//priority := int64(0)
+	priority := int64(1)
 	appTx := thTx{
 		sender,
 		priority,
@@ -49,7 +50,8 @@ func (t *ThresholdMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 
 	t.logger.Info(fmt.Sprintf("Inserting transaction from %v with priority %v", sender, priority))
 
-	t.pendingPool.txs = append(t.pendingPool.txs, appTx)
+	//t.pendingPool.txs = append(t.pendingPool.txs, appTx)
+	t.pool.txs = append(t.pool.txs, appTx)
 	leng := len(t.pendingPool.txs)
 	t.logger.Info(fmt.Sprintf("Transactions length %v", leng))
 
