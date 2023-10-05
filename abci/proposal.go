@@ -92,7 +92,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 
 func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
-		h.Logger.Info(fmt.Sprintf("⚙️ :: Process Proposal"))
+		h.Logger.Info("⚙️ :: Process Proposal")
 
 		// The first transaction will always be the Special Transaction
 		numTxs := len(req.Txs)
@@ -104,7 +104,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 				h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling special Tx in Process Proposal :: %v", err))
 			}
 			if len(st.Bids) > 0 {
-				h.Logger.Info(fmt.Sprintf("⚙️:: There are bids in the Special Transaction"))
+				h.Logger.Info("⚙️:: There are bids in the Special Transaction")
 				var bids []nstypes.MsgBid
 				for i, b := range st.Bids {
 					var bid nstypes.MsgBid
@@ -132,7 +132,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 }
 
 func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (SpecialTransaction, error) {
-	log.Info(fmt.Sprintf("🛠️ :: Process Vote Extensions"))
+	log.Info("🛠️ :: Process Vote Extensions")
 
 	// Create empty response
 	st := SpecialTransaction{
@@ -150,7 +150,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 		// Unmarshal to AppExt
 		err := json.Unmarshal(vote.VoteExtension, &ve)
 		if err != nil {
-			log.Error(fmt.Sprintf("❌ :: Error unmarshalling Vote Extension"))
+			log.Error("❌ :: Error unmarshalling Vote Extension")
 		}
 
 		st.Height = int(ve.Height)
@@ -158,9 +158,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 		// If Bids in VE, append to Special Transaction
 		if len(ve.Bids) > 0 {
 			log.Info("🛠️ :: Bids in VE")
-			for _, b := range ve.Bids {
-				st.Bids = append(st.Bids, b)
-			}
+			st.Bids = append(st.Bids, ve.Bids...)
 		}
 	}
 

@@ -190,19 +190,16 @@ func NewApp(
 		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
 		bApp.SetVerifyVoteExtensionHandler(voteExtHandler.VerifyVoteExtHandler())
 		voteExtHandler.SetSubscriber(
-			authtypes.StoreKey, 
+			authtypes.StoreKey,
 			func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
 				//Do something with app.AccountKeeper
 				return []byte{}, nil
 			},
-			func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) ([]byte, error) {
+			func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
 				//Do something with app.AccountKeeper
-				return []byte{}, nil
-			}
+				return abci.ResponseVerifyVoteExtension_ACCEPT, nil
+			},
 		)
-		voteExtHandler.SetSubscriber(nstypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
-			return []byte{}, nil
-		})
 	}
 	baseAppOptions = append(baseAppOptions, voteExtOp)
 
