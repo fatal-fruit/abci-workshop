@@ -184,19 +184,22 @@ func NewApp(
 		app.SetMempool(mempool)
 	})
 
+	// Configure vote extension handlers.
 	voteExtOp := func(bApp *baseapp.BaseApp) {
 		voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
-		voteExtHandler.SetSubscriber(authtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
-			//Do something with app.AccountKeeper
-			return []byte{}, nil
-		})
-		voteExtHandler.SetSubscriber(stakingtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
-			return []byte{}, nil
-		})
-		voteExtHandler.SetSubscriber(govtypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
-			return []byte{}, nil
-		})
+		bApp.SetVerifyVoteExtensionHandler(voteExtHandler.VerifyVoteExtHandler())
+		voteExtHandler.SetSubscriber(
+			authtypes.StoreKey, 
+			func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+				//Do something with app.AccountKeeper
+				return []byte{}, nil
+			},
+			func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) ([]byte, error) {
+				//Do something with app.AccountKeeper
+				return []byte{}, nil
+			}
+		)
 		voteExtHandler.SetSubscriber(nstypes.StoreKey, func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
 			return []byte{}, nil
 		})

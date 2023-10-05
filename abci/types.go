@@ -27,11 +27,12 @@ type ProcessProposalHandler struct {
 }
 
 type VoteExtHandler struct {
-	logger       log.Logger
-	currentBlock int64
-	mempool      *mempool.ThresholdMempool
-	cdc          codec.Codec
-	subscribers  map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)
+	logger            log.Logger
+	currentBlock      int64
+	mempool           *mempool.ThresholdMempool
+	cdc               codec.Codec
+	extendSubscribers map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)
+	verifySubscribers map[string]func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)
 }
 
 type InjectedVoteExt struct {

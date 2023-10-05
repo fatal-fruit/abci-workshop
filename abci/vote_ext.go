@@ -15,15 +15,20 @@ import (
 
 func NewVoteExtensionHandler(lg log.Logger, mp *mempool.ThresholdMempool, cdc codec.Codec) *VoteExtHandler {
 	return &VoteExtHandler{
-		logger:      lg,
-		mempool:     mp,
-		cdc:         cdc,
-		subscribers: make(map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)),
+		logger:            lg,
+		mempool:           mp,
+		cdc:               cdc,
+		extendSubscribers: make(map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)),
+		verifySubscribers: make(map[string]func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)),
 	}
 }
 
-func (h *VoteExtHandler) SetSubscriber(key string, subHandler func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)) {
-	h.subscribers[key] = subHandler
+func (h *VoteExtHandler) SetSubscriber(
+	key string,
+	extendSubHandler func(sdk.Context, *abci.RequestExtendVote) ([]byte, error),
+	verifySubHandler func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)) {
+	h.extendSubscribers[key] = extendSubHandler
+	h.verifySubscribers[key] = verifySubHandler
 }
 
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
@@ -55,10 +60,9 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 					}
 					voteExtBids = append(voteExtBids, bz)
 				default:
-					for _, v := range h.subscribers {
+					for _, v := range h.extendSubscribers {
+						//Route to other handlers
 						val, error := v(ctx, req)
-
-						//Route to other functions.
 						if error == nil {
 							voteExtExtra = append(voteExtExtra, val)
 						}
@@ -92,5 +96,26 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		}
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
+	}
+}
+
+func (h *VoteExtHandler) VerifyVoteExtHandler() sdk.VerifyVoteExtensionHandler {
+	return func(ctx sdk.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
+		for _, v := range h.verifySubscribers {
+			//Route to other handlers
+			val, error := v(ctx, req)
+
+			if error != nil {
+				h.logger.Info(fmt.Sprintf("Verifying vote extensions at block height : %v", req.Height))
+				return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_UNKNOWN}, error
+			}
+			if val != abci.ResponseVerifyVoteExtension_ACCEPT {
+				h.logger.Info(fmt.Sprintf("Verifying vote extensions at block height : %v", req.Height))
+				return &abci.ResponseVerifyVoteExtension{Status: val}, nil
+			}
+		}
+
+		h.logger.Info(fmt.Sprintf("Verifying vote extensions at block height : %v", req.Height))
+		return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
 	}
 }
