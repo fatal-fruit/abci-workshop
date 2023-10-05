@@ -184,25 +184,6 @@ func NewApp(
 		app.SetMempool(mempool)
 	})
 
-	// Configure vote extension handlers.
-	voteExtOp := func(bApp *baseapp.BaseApp) {
-		voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
-		bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
-		bApp.SetVerifyVoteExtensionHandler(voteExtHandler.VerifyVoteExtHandler())
-		voteExtHandler.SetSubscriber(
-			authtypes.StoreKey,
-			func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
-				//Do something with app.AccountKeeper
-				return []byte{}, nil
-			},
-			func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
-				//Do something with app.AccountKeeper
-				return abci.ResponseVerifyVoteExtension_ACCEPT, nil
-			},
-		)
-	}
-	baseAppOptions = append(baseAppOptions, voteExtOp)
-
 	bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
@@ -268,10 +249,12 @@ func NewApp(
 	if err := bp.Init(); err != nil {
 		panic(err)
 	}
+	voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
 	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
 	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
+	bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
@@ -498,6 +481,14 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 // InitChainer application update at chain initialization
 func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
 	var genesisState GenesisState
+
+	// Enable VE
+	//req.ConsensusParams = &cmtproto.ConsensusParams{
+	//	Abci: &cmtproto.ABCIParams{
+	//		VoteExtensionsEnableHeight: 2,
+	//	},
+	//}
+
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
