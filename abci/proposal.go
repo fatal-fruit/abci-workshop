@@ -51,7 +51,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			// Marshal Special Transaction
 			bz, err := json.Marshal(ve)
 			if err != nil {
-				h.logger.Error(fmt.Sprintf("❌️ :: Unable to marshal Vote Extensions: %v", err))
+				h.logger.Error(fmt.Sprintf("❌️ :: Unable to marshal Vote Extensions as special transaction: %v", err))
 			}
 
 			// Append Special Transaction to proposal
@@ -165,7 +165,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 		// Unmarshal to AppExt
 		err := json.Unmarshal(vote.VoteExtension, &ve)
 		if err != nil {
-			log.Error("❌ :: Error unmarshalling Vote Extension")
+			log.Error("❌ :: Error unmarshalling Vote Extension ", "error", err)
 		}
 
 		st.Height = int(ve.Height)

@@ -255,6 +255,7 @@ func NewApp(
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
 	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 	bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
+	bApp.SetVerifyVoteExtensionHandler(voteExtHandler.VerifyVoteExtHandler())
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
@@ -275,6 +276,20 @@ func NewApp(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	logger.Info("Setting AccountKeeper extension sub-handlers")
+
+	voteExtHandler.SetSubscriber(
+		"AccountKeeper",
+		func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			logger.Info("===> app.AccountKeeper ExtendVoteSubHandler <===")
+			return []byte{}, nil
+		},
+		func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+			logger.Info("===> app.AccountKeeper VerifyVoteSubHandler <===")
+			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
+		},
+	)
+
 	app.BankKeeper = bankkeeper.NewBaseKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[banktypes.StoreKey]),
@@ -282,6 +297,19 @@ func NewApp(
 		blockedAddr,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		logger,
+	)
+
+	logger.Info("Setting BankKeeper extension sub-handlers")
+	voteExtHandler.SetSubscriber(
+		"BankKeeper",
+		func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			logger.Info("===> app.BankKeeper ExtendVoteSubHandler <===")
+			return []byte{}, nil
+		},
+		func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+			logger.Info("===> app.BankKeeper VerifyVoteSubHandler <===")
+			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
+		},
 	)
 
 	app.StakingKeeper = stakingkeeper.NewKeeper(

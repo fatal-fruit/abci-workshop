@@ -41,12 +41,9 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		// Get mempool txs
 		itr := h.mempool.SelectPending(context.Background(), nil)
 
-		var txs []sdk.Tx
 		for itr != nil {
 			tmptx := itr.Tx()
 			sdkMsgs := tmptx.GetMsgs()
-
-			txs = append(txs, tmptx)
 
 			// Iterate through msgs, check for any bids
 			for _, msg := range sdkMsgs {
@@ -60,13 +57,6 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 					}
 					voteExtBids = append(voteExtBids, bz)
 				default:
-					for _, v := range h.extendSubscribers {
-						//Route to other handlers
-						val, error := v(ctx, req)
-						if error == nil {
-							voteExtExtra = append(voteExtExtra, val)
-						}
-					}
 				}
 			}
 
@@ -80,6 +70,14 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			}
 
 			itr = itr.Next()
+		}
+
+		for _, v := range h.extendSubscribers {
+			//Route to other handlers
+			val, error := v(ctx, req)
+			if error == nil {
+				voteExtExtra = append(voteExtExtra, val)
+			}
 		}
 
 		// Create vote extension
