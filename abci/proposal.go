@@ -36,7 +36,7 @@ func NewPrepareProposalHandler(
 
 func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		h.logger.Info(fmt.Sprintf("🛠️ :: Prepare Proposal"))
+		h.logger.Info("🛠️ :: Prepare Proposal")
 		var proposalTxs [][]byte
 
 		// Get Vote Extensions
@@ -90,6 +90,17 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 	}
 }
 
+func NewProcessProposalHandler(
+	lg log.Logger,
+	txCg client.TxConfig,
+	cdc codec.Codec,
+) *ProcessProposalHandler {
+	return &ProcessProposalHandler{
+		TxConfig: txCg,
+		Codec:    cdc,
+		Logger:   lg,
+	}
+}
 func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 		h.Logger.Info("⚙️ :: Process Proposal")
@@ -108,7 +119,11 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 				var bids []nstypes.MsgBid
 				for i, b := range st.Bids {
 					var bid nstypes.MsgBid
-					h.Codec.Unmarshal(b, &bid)
+					err = h.Codec.Unmarshal(b, &bid)
+					if err != nil {
+						h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling bid in Process Proposal :: %v", err))
+					}
+
 					h.Logger.Info(fmt.Sprintf("⚙️:: Special Transaction Bid No %v :: %v", i, bid))
 					bids = append(bids, bid)
 				}

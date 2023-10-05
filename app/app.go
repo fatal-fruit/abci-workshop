@@ -251,7 +251,7 @@ func NewApp(
 	}
 	voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
+	processPropHandler := abci2.NewProcessProposalHandler(logger, app.txConfig, appCodec)
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
 	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 	bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
