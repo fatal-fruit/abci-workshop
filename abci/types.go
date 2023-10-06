@@ -32,7 +32,7 @@ type VoteExtHandler struct {
 	mempool           *mempool.ThresholdMempool
 	cdc               codec.Codec
 	extendSubscribers map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)
-	verifySubscribers map[string]func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)
+	verifySubscribers map[string]func(sdk.Context, []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)
 }
 
 type InjectedVoteExt struct {
@@ -47,7 +47,7 @@ type InjectedVotes struct {
 type AppVoteExtension struct {
 	Height    int64
 	Bids      [][]byte
-	ExtraInfo [][]byte
+	ExtraInfo []byte
 }
 
 type SpecialTransaction struct {

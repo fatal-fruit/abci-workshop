@@ -19,14 +19,14 @@ func NewVoteExtensionHandler(lg log.Logger, mp *mempool.ThresholdMempool, cdc co
 		mempool:           mp,
 		cdc:               cdc,
 		extendSubscribers: make(map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)),
-		verifySubscribers: make(map[string]func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)),
+		verifySubscribers: make(map[string]func(sdk.Context, []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)),
 	}
 }
 
 func (h *VoteExtHandler) SetSubscriber(
 	key string,
 	extendSubHandler func(sdk.Context, *abci.RequestExtendVote) ([]byte, error),
-	verifySubHandler func(sdk.Context, *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)) {
+	verifySubHandler func(sdk.Context, []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)) {
 	h.extendSubscribers[key] = extendSubHandler
 	h.verifySubscribers[key] = verifySubHandler
 }
@@ -36,7 +36,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		h.logger.Info(fmt.Sprintf("Extending votes at block height : %v", req.Height))
 
 		voteExtBids := [][]byte{}
-		voteExtExtra := [][]byte{}
+		voteExtExtra := map[string][]byte{}
 
 		// Get mempool txs
 		itr := h.mempool.SelectPending(context.Background(), nil)
@@ -72,19 +72,24 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			itr = itr.Next()
 		}
 
-		for _, v := range h.extendSubscribers {
+		for k, v := range h.extendSubscribers {
 			//Route to other handlers
 			val, error := v(ctx, req)
 			if error == nil {
-				voteExtExtra = append(voteExtExtra, val)
+				voteExtExtra[k] = val
 			}
 		}
 
 		// Create vote extension
+		mVoteExtra, err := json.Marshal(voteExtExtra)
+		if err != nil {
+			h.logger.Error("Error marshalling voteExtra")
+		}
+
 		voteExt := AppVoteExtension{
 			Height:    req.Height,
 			Bids:      voteExtBids,
-			ExtraInfo: voteExtExtra,
+			ExtraInfo: mVoteExtra,
 		}
 
 		// Marshal Vote Extension
@@ -99,9 +104,31 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 
 func (h *VoteExtHandler) VerifyVoteExtHandler() sdk.VerifyVoteExtensionHandler {
 	return func(ctx sdk.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
-		for _, v := range h.verifySubscribers {
+		h.logger.Info(fmt.Sprintf("Verifying votes at block height : %v", req.Height))
+		voteExt := AppVoteExtension{}
+
+		err := json.Unmarshal(req.VoteExtension, &voteExt)
+		if err != nil {
+			h.logger.Error(fmt.Sprintf("Could not unmarshal vote extension : %v", req.Height))
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, nil
+		}
+
+		mVoteExtra := make(map[string][]byte)
+		err = json.Unmarshal(voteExt.ExtraInfo, &mVoteExtra)
+		if err != nil {
+			h.logger.Error(fmt.Sprintf("Could not unmarshal extra info from VE : %v", req.Height))
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, nil
+		}
+
+		for k, e := range mVoteExtra {
 			//Route to other handlers
-			val, error := v(ctx, req)
+			v, ok := h.verifySubscribers[k]
+			if !ok {
+				h.logger.Error(fmt.Sprintf("Received extra info for module not registered: %v", k))
+				return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, nil
+			}
+
+			val, error := v(ctx, e)
 
 			if error != nil {
 				h.logger.Info(fmt.Sprintf("Verifying vote extensions at block height : %v", req.Height))

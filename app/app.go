@@ -284,8 +284,13 @@ func NewApp(
 			logger.Info("===> app.AccountKeeper ExtendVoteSubHandler <===")
 			return []byte{}, nil
 		},
-		func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+		func(ctx sdk.Context, rev []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
 			logger.Info("===> app.AccountKeeper VerifyVoteSubHandler <===")
+			ext := ""
+			if err := json.Unmarshal(rev, &ext); err != nil {
+				logger.Error("Error unmarshalling extra info in AccountKeeper")
+			}
+
 			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
 		},
 	)
@@ -304,10 +309,15 @@ func NewApp(
 		"BankKeeper",
 		func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
 			logger.Info("===> app.BankKeeper ExtendVoteSubHandler <===")
-			return []byte{}, nil
+			return json.Marshal("BankKeeper")
 		},
-		func(ctx sdk.Context, rev *abci.RequestVerifyVoteExtension) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+		func(ctx sdk.Context, rev []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
 			logger.Info("===> app.BankKeeper VerifyVoteSubHandler <===")
+			ext := ""
+			if err := json.Unmarshal(rev, &ext); err != nil {
+				logger.Error("Error unmarshalling extra info in BankKeeper")
+			}
+
 			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
 		},
 	)
