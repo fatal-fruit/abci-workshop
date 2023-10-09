@@ -38,7 +38,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 		h.logger.Info(fmt.Sprintf("🛠️ :: Prepare Proposal"))
 		var proposalTxs [][]byte
 
-		// Get Vote Extensions
+		// If the block height is more than 2, get Vote Extensions from Special Transaction
 		if req.Height > 2 {
 
 			// Get Special Transaction
@@ -57,6 +57,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			proposalTxs = append(proposalTxs, bz)
 		}
 
+		// Get all the transactions from the mempool
 		var txs []sdk.Tx
 		itr := h.mempool.Select(context.Background(), nil)
 		for itr != nil {
@@ -67,6 +68,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 		}
 		h.logger.Info(fmt.Sprintf("🛠️ :: Number of Transactions available from mempool: %v", len(txs)))
 
+		// If the runProvider is set, then build a custom proposal
 		if h.runProvider {
 			tmpMsgs, err := h.txProvider.BuildProposal(ctx, txs)
 			if err != nil {
@@ -99,6 +101,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
 		}
 
+		// If there are at least 2 transactions, then the first transaction is the special transaction
 		if numTxs >= 1 {
 			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
 			var st SpecialTransaction
@@ -106,6 +109,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 			if err != nil {
 				h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling special Tx in Process Proposal :: %v", err))
 			}
+			// If there are any bids in the special transaction, then validate them
 			if len(st.Bids) > 0 {
 				h.Logger.Info(fmt.Sprintf("⚙️:: There are bids in the Special Transaction"))
 				var bids []nstypes.MsgBid
@@ -122,6 +126,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 					h.Logger.Error(fmt.Sprintf("❌️:: Error validating bids in Process Proposal :: %v", err))
 					return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
 				}
+				// If the bids in the proposal are not valid, then reject the Tx
 				if !ok {
 					h.Logger.Error(fmt.Sprintf("❌️:: Unable to validate bids in Process Proposal :: %v", err))
 					return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
@@ -171,6 +176,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 }
 
 func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs [][]byte, logger log.Logger) (bool, error) {
+	// Create a list of bids to store in the proposal
 	var proposalBids []*nstypes.MsgBid
 	for _, txBytes := range proposalTxs {
 		txDecoder := txConfig.TxDecoder()
@@ -180,7 +186,10 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 
 			return false, err
 		}
+		// Get SDK messages from transactions
 		sdkMsgs := messages.GetMsgs()
+
+		// Iterate through the SDK messages and get the bids
 		for _, m := range sdkMsgs {
 			switch m := m.(type) {
 			case *nstypes.MsgBid:
@@ -188,9 +197,13 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 			}
 		}
 	}
-
+	// Create map to store each bid frequency in the vote extension
 	bidFreq := make(map[string]int)
+
+	// Get the total number of votes in the vote extension
 	totalVotes := len(veBids)
+
+	// Iterate through the bids in the vote extension and calculate the frequency of each bid
 	for _, b := range veBids {
 		h, err := Hash(&b)
 		if err != nil {
@@ -201,11 +214,13 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 		bidFreq[h]++
 	}
 
+	// Calculate the threshold count
 	thresholdCount := int(float64(totalVotes) * 0.5)
 	logger.Info(fmt.Sprintf("🛠️ :: VE Threshold: %v", thresholdCount))
 	ok := true
 	logger.Info(fmt.Sprintf("🛠️ :: Number of Proposal Bids: %v", len(proposalBids)))
 
+	// Iterate over proposal bids and check if each bid appaears in the VE at least the threshold count number of times
 	for _, p := range proposalBids {
 
 		key, err := Hash(p)
@@ -214,8 +229,10 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 
 			return false, err
 		}
+		//Get the frequency of the proposal bid
 		freq := bidFreq[key]
 		logger.Info(fmt.Sprintf("🛠️ :: Frequency for Proposal Bid: %v", freq))
+		// If the frequency of the proposal bid is less than the threshold count, then the bid is invalid
 		if freq < thresholdCount {
 			logger.Error(fmt.Sprintf("❌️:: Detected invalid proposal bid :: %v", p))
 
