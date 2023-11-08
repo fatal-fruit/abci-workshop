@@ -1,22 +1,23 @@
 package abci
 
 import (
+	"testing"
+
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/fatal-fruit/cosmapp/testutils"
 	nstypes "github.com/fatal-fruit/ns/types"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestBidHash(t *testing.T) {
 	bids := []*nstypes.MsgBid{
 		{
-			"bob.cosmos",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
+			Name:           "bob.cosmos",
+			ResolveAddress: "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Owner:          "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Amount:         sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
 		},
 	}
 
@@ -35,22 +36,22 @@ func TestValidateProposal(t *testing.T) {
 
 	voteExtBids := []nstypes.MsgBid{
 		{
-			"bob.cosmos",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
+			Name:           "bob.cosmos",
+			ResolveAddress: "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Owner:          "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Amount:         sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
 		},
 		{
-			"bob.cosmos",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
+			Name:           "bob.cosmos",
+			ResolveAddress: "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Owner:          "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Amount:         sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
 		},
 		{
-			"bob.cosmos",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			"cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
-			sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
+			Name:           "bob.cosmos",
+			ResolveAddress: "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Owner:          "cosmos1c3f2e2d4wwhaud70h3c7rah8aede8kplevxe3j",
+			Amount:         sdk.Coins{sdk.NewCoin("uatom", math.NewInt(5))},
 		},
 	}
 

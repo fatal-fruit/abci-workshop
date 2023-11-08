@@ -1,20 +1,21 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"encoding/json"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	abci2 "github.com/fatal-fruit/cosmapp/abci"
 	mempool2 "github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 	"github.com/spf13/cast"
-	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/std"
@@ -44,6 +45,7 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/gogoproto/proto"
+
 	// ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
@@ -249,10 +251,11 @@ func NewApp(
 	}
 	voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 	prepareProposalHandler := abci2.NewPrepareProposalHandler(logger, app.txConfig, appCodec, mempool, bp, runProvider)
-	processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
+	processPropHandler := abci2.NewProcessProposalHandler(logger, app.txConfig, appCodec)
 	bApp.SetPrepareProposal(prepareProposalHandler.PrepareProposalHandler())
 	bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 	bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
+	bApp.SetVerifyVoteExtensionHandler(voteExtHandler.VerifyVoteExtHandler())
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, legacyAmino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
@@ -273,6 +276,25 @@ func NewApp(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	logger.Info("Setting AccountKeeper extension sub-handlers")
+
+	voteExtHandler.SetSubscriber(
+		"AccountKeeper",
+		func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			logger.Info("===> app.AccountKeeper ExtendVoteSubHandler <===")
+			return []byte{}, nil
+		},
+		func(ctx sdk.Context, rev []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+			logger.Info("===> app.AccountKeeper VerifyVoteSubHandler <===")
+			ext := ""
+			if err := json.Unmarshal(rev, &ext); err != nil {
+				logger.Error("Error unmarshalling extra info in AccountKeeper")
+			}
+
+			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
+		},
+	)
+
 	app.BankKeeper = bankkeeper.NewBaseKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[banktypes.StoreKey]),
@@ -280,6 +302,24 @@ func NewApp(
 		blockedAddr,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		logger,
+	)
+
+	logger.Info("Setting BankKeeper extension sub-handlers")
+	voteExtHandler.SetSubscriber(
+		"BankKeeper",
+		func(ctx sdk.Context, rev *abci.RequestExtendVote) ([]byte, error) {
+			logger.Info("===> app.BankKeeper ExtendVoteSubHandler <===")
+			return json.Marshal("BankKeeper")
+		},
+		func(ctx sdk.Context, rev []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error) {
+			logger.Info("===> app.BankKeeper VerifyVoteSubHandler <===")
+			ext := ""
+			if err := json.Unmarshal(rev, &ext); err != nil {
+				logger.Error("Error unmarshalling extra info in BankKeeper")
+			}
+
+			return abci.ResponseVerifyVoteExtension_ACCEPT, nil
+		},
 	)
 
 	app.StakingKeeper = stakingkeeper.NewKeeper(

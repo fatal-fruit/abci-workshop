@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/fatal-fruit/cosmapp/testutils"
 	"os"
+
+	"github.com/fatal-fruit/cosmapp/testutils"
 
 	"cosmossdk.io/log"
 	dbm "github.com/cosmos/cosmos-db"
@@ -29,7 +30,7 @@ func NewRootCmd() (*cobra.Command, testutils.EncodingConfig) {
 		nil,
 		true,
 		map[int64]bool{},
-		"val",
+		"val1",
 		simtestutil.NewAppOptionsWithFlagHome(tempDir()),
 	)
 

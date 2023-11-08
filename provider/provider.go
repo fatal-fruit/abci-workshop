@@ -1,9 +1,10 @@
 package provider
 
 import (
+	"fmt"
+
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -12,7 +13,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	nstypes "github.com/fatal-fruit/ns/types"
 )
 
@@ -77,7 +77,7 @@ func (ls *LocalSigner) Init(txCfg client.TxConfig, cdc codec.Codec, logger log.L
 	return nil
 }
 
-func (ls *LocalSigner) RetreiveSigner(ctx sdk.Context, actKeeper authkeeper.AccountKeeper) (types.AccountI, error) {
+func (ls *LocalSigner) RetreiveSigner(ctx sdk.Context, actKeeper authkeeper.AccountKeeper) (sdk.AccountI, error) {
 	lg := ls.lg
 
 	addrBz, err := ls.kb.LookupAddressByKeyName(ls.KeyName)
@@ -107,7 +107,7 @@ func (ls *LocalSigner) RetreiveSigner(ctx sdk.Context, actKeeper authkeeper.Acco
 	return acct, nil
 }
 
-func (ls *LocalSigner) BuildAndSignTx(ctx sdk.Context, acct types.AccountI, msg nstypes.MsgBid) sdk.Tx {
+func (ls *LocalSigner) BuildAndSignTx(ctx sdk.Context, acct sdk.AccountI, msg nstypes.MsgBid) sdk.Tx {
 	factory := tx.Factory{}.
 		WithTxConfig(ls.txConfig).
 		WithKeybase(ls.kb).

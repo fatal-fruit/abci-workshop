@@ -2,8 +2,10 @@ package abci
 
 import (
 	"cosmossdk.io/log"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/fatal-fruit/cosmapp/mempool"
 	"github.com/fatal-fruit/cosmapp/provider"
 )
@@ -25,10 +27,12 @@ type ProcessProposalHandler struct {
 }
 
 type VoteExtHandler struct {
-	logger       log.Logger
-	currentBlock int64
-	mempool      *mempool.ThresholdMempool
-	cdc          codec.Codec
+	logger            log.Logger
+	currentBlock      int64
+	mempool           *mempool.ThresholdMempool
+	cdc               codec.Codec
+	extendSubscribers map[string]func(sdk.Context, *abci.RequestExtendVote) ([]byte, error)
+	verifySubscribers map[string]func(sdk.Context, []byte) (abci.ResponseVerifyVoteExtension_VerifyStatus, error)
 }
 
 type InjectedVoteExt struct {
@@ -41,8 +45,9 @@ type InjectedVotes struct {
 }
 
 type AppVoteExtension struct {
-	Height int64
-	Bids   [][]byte
+	Height    int64
+	Bids      [][]byte
+	ExtraInfo []byte
 }
 
 type SpecialTransaction struct {

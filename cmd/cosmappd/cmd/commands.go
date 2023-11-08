@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"errors"
-	"github.com/fatal-fruit/cosmapp/testutils"
-	"github.com/fatal-fruit/cosmapp/types"
 	"io"
 	"os"
+
+	"github.com/fatal-fruit/cosmapp/testutils"
+	"github.com/fatal-fruit/cosmapp/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -157,7 +158,7 @@ func newApp(
 
 	valKey, ok := appOpts.Get(types.FlagValKey).(string)
 	if !ok {
-		valKey = "val"
+		valKey = "val1"
 	}
 
 	return app.NewApp(

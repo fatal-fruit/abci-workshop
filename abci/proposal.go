@@ -2,10 +2,11 @@ package abci
 
 import (
 	"context"
-	"cosmossdk.io/log"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
+	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -35,7 +36,7 @@ func NewPrepareProposalHandler(
 
 func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		h.logger.Info(fmt.Sprintf("🛠️ :: Prepare Proposal"))
+		h.logger.Info("🛠️ :: Prepare Proposal")
 		var proposalTxs [][]byte
 
 		// Get Vote Extensions
@@ -50,7 +51,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			// Marshal Special Transaction
 			bz, err := json.Marshal(ve)
 			if err != nil {
-				h.logger.Error(fmt.Sprintf("❌️ :: Unable to marshal Vote Extensions: %v", err))
+				h.logger.Error(fmt.Sprintf("❌️ :: Unable to marshal Vote Extensions as special transaction: %v", err))
 			}
 
 			// Append Special Transaction to proposal
@@ -89,29 +90,40 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 	}
 }
 
+func NewProcessProposalHandler(
+	lg log.Logger,
+	txCg client.TxConfig,
+	cdc codec.Codec,
+) *ProcessProposalHandler {
+	return &ProcessProposalHandler{
+		TxConfig: txCg,
+		Codec:    cdc,
+		Logger:   lg,
+	}
+}
 func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
-		h.Logger.Info(fmt.Sprintf("⚙️ :: Process Proposal"))
+		h.Logger.Info("⚙️ :: Process Proposal")
 
 		// The first transaction will always be the Special Transaction
 		numTxs := len(req.Txs)
-		if numTxs == 1 {
-			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
-		}
-
 		if numTxs >= 1 {
 			h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
 			var st SpecialTransaction
-			err = json.Unmarshal(req.Txs[0], &st)
+			err = json.Unmarshal(req.Txs[0], &st) //Check for height > 2 here?
 			if err != nil {
 				h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling special Tx in Process Proposal :: %v", err))
 			}
 			if len(st.Bids) > 0 {
-				h.Logger.Info(fmt.Sprintf("⚙️:: There are bids in the Special Transaction"))
+				h.Logger.Info("⚙️:: There are bids in the Special Transaction")
 				var bids []nstypes.MsgBid
 				for i, b := range st.Bids {
 					var bid nstypes.MsgBid
-					h.Codec.Unmarshal(b, &bid)
+					err = h.Codec.Unmarshal(b, &bid)
+					if err != nil {
+						h.Logger.Error(fmt.Sprintf("❌️:: Error unmarshalling bid in Process Proposal :: %v", err))
+					}
+
 					h.Logger.Info(fmt.Sprintf("⚙️:: Special Transaction Bid No %v :: %v", i, bid))
 					bids = append(bids, bid)
 				}
@@ -135,7 +147,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 }
 
 func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (SpecialTransaction, error) {
-	log.Info(fmt.Sprintf("🛠️ :: Process Vote Extensions"))
+	log.Info("🛠️ :: Process Vote Extensions")
 
 	// Create empty response
 	st := SpecialTransaction{
@@ -153,7 +165,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 		// Unmarshal to AppExt
 		err := json.Unmarshal(vote.VoteExtension, &ve)
 		if err != nil {
-			log.Error(fmt.Sprintf("❌ :: Error unmarshalling Vote Extension"))
+			log.Error("❌ :: Error unmarshalling Vote Extension ", "error", err)
 		}
 
 		st.Height = int(ve.Height)
@@ -161,9 +173,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 		// If Bids in VE, append to Special Transaction
 		if len(ve.Bids) > 0 {
 			log.Info("🛠️ :: Bids in VE")
-			for _, b := range ve.Bids {
-				st.Bids = append(st.Bids, b)
-			}
+			st.Bids = append(st.Bids, ve.Bids...)
 		}
 	}
 
@@ -201,6 +211,9 @@ func ValidateBids(txConfig client.TxConfig, veBids []nstypes.MsgBid, proposalTxs
 		bidFreq[h]++
 	}
 
+	// Say you have 3 validators with voting power 1, 2 and 3.
+	// Say 100 different bids are sent for different addresses. The threshold, as per the code, is 51. Hence, no bid will reach the threshold and be accepted.
+	// Wouldn't it better to have as threshold 3*2/3+1 instead? Or (1+2+3)*2/3+1 (with bids weighted per voter)?
 	thresholdCount := int(float64(totalVotes) * 0.5)
 	logger.Info(fmt.Sprintf("🛠️ :: VE Threshold: %v", thresholdCount))
 	ok := true
