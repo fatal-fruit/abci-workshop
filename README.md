@@ -90,12 +90,12 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
       // Iterate through reaped transactions, msgs and check for bids
 
       // Move tx to ready pool
-
-      // Remove tx from app side mempool
-
+		
       // Create vote extension
       
       // Marshal Vote Extension
+		
+	 // Return RequestExtendVote
     }
 }
 ```

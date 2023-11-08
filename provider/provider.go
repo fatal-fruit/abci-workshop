@@ -20,7 +20,7 @@ import (
 	This implementation is for demo purposes only and does not reflect all limitations and
 	constraints of a live distributed network.
 
-	TRansaction Provider is an embedded solution to demonstrate an interface an application could
+	Transaction Provider is an embedded solution to demonstrate an interface an application could
 	leverage to extract MEV when building and proposing a block. In this example, the
 	application is building and signing transactions locally for the sake of a simplicity.
 	Alternatively, another implementation could instead take transactions submitted directly
@@ -80,7 +80,6 @@ func (ls *LocalSigner) Init(txCfg client.TxConfig, cdc codec.Codec, logger log.L
 func (ls *LocalSigner) RetreiveSigner(ctx sdk.Context, actKeeper authkeeper.AccountKeeper) (sdk.AccountI, error) {
 	lg := ls.lg
 
-	lg.Info(fmt.Sprintf("Keyring Dir: %v", ls.KeyringDir))
 	addrBz, err := ls.kb.LookupAddressByKeyName(ls.KeyName)
 
 	if err != nil {
@@ -136,7 +135,6 @@ func (ls *LocalSigner) BuildAndSignTx(ctx sdk.Context, acct sdk.AccountI, msg ns
 
 func (b *LocalTxProvider) getMatchingBid(ctx sdk.Context, bid *nstypes.MsgBid) sdk.Tx {
 	acct, err := b.Signer.RetreiveSigner(ctx, b.AcctKeeper)
-	b.Logger.Info("💨 :: Retrieved Signer")
 	if err != nil {
 		b.Logger.Error(fmt.Sprintf("Error retrieving signer: %v", err))
 		return nil

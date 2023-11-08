@@ -92,7 +92,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			ExtraInfo: mVoteExtra,
 		}
 
-		// Marshal Vote Extension
+		// Encode Vote Extension
 		bz, err := json.Marshal(voteExt)
 		if err != nil {
 			return nil, fmt.Errorf("Error marshalling VE: %w", err)
